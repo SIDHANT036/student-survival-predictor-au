@@ -107,17 +107,46 @@ with tab3:
 
 # ── TAB 4: Report ────────────────────────────────────────
 with tab4:
-    st.subheader("Download your personalised report")
-    name = st.text_input("Your name", "Student")
-    if st.button("Generate PDF report"):
-        budget  = st.session_state.get('budget',
-                    {'savings_weekly':0,'savings_monthly':0,'risk_level':'N/A','suggestions':[]})
-        stress  = st.session_state.get('stress',
-                    {'label':'N/A','probability':0})
-        burnout = st.session_state.get('burnout',
-                    {'total_committed_hours':0,'burnout_risk':'N/A','suggestions':[]})
-        path = generate_report(name, budget, stress, burnout)
-        with open(path, 'rb') as f:
-            st.download_button("⬇️ Download PDF", f,
-                               file_name=f"survival_report_{name}.pdf",
-                               mime="application/pdf")
+    st.subheader("📊 City Comparison Dashboard")
+
+    import plotly.express as px
+    import pandas as pd
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect('data/students.db')
+        df = pd.read_sql("SELECT * FROM students", conn)
+        conn.close()
+    except Exception as e:
+        st.error("Database not found. Using fallback CSV.")
+        df = pd.read_csv('data/synthetic/students.csv')
+
+    # ---- Filter (PRO FEATURE) ----
+    cities = st.multiselect(
+        "Select cities",
+        df['city'].unique(),
+        default=df['city'].unique()
+    )
+    df = df[df['city'].isin(cities)]
+
+    # ---- Chart 1 ----
+    fig1 = px.box(
+        df,
+        x='city',
+        y='savings_weekly',
+        color='city',
+        title='Weekly savings by city',
+        labels={'savings_weekly': 'Savings/week ($)'}
+    )
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # ---- Chart 2 ----
+    fig2 = px.histogram(
+        df,
+        x='savings_weekly',
+        color='financial_stress',
+        barmode='overlay',
+        nbins=50,
+        title='Savings distribution: stressed vs stable'
+    )
+    st.plotly_chart(fig2, use_container_width=True)
